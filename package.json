@@ -1,7 +1,7 @@
 {
-  "name": "growi-plugin-script-template",
+  "name": "growi-plugin-include-page",
   "version": "1.0.0",
-  "description": "GROWI plugin template for script",
+  "description": "GROWI plugin for include page",
   "license": "MIT",
   "keywords": [
     "growi",
