@@ -1,7 +1,7 @@
 import React from 'react';
 
 import config from './package.json';
-import { helloGROWI, remarkPlugin, rehypePlugin } from './src/Hello';
+import { helloGROWI, remarkPlugin } from './src/Hello';
 import { Options, Func, ViewOptions } from './types/utils';
 
 declare const growiFacade : {
@@ -21,7 +21,6 @@ const addPlugin = (options: ViewOptions) => {
   // replace
   options.components.a = helloGROWI(a);
   options.remarkPlugins.push(remarkPlugin as any);
-  options.rehypePlugins.push(rehypePlugin as any);
   return options;
 };
 

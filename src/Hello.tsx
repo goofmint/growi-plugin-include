@@ -1,65 +1,48 @@
 import React from 'react';
 
+import { GROWI } from '@goofmint/growi-js';
 import { h, Properties } from 'hastscript';
+import rehypeStringify from 'rehype-stringify';
+import remarkParse from 'remark-parse';
+import remarkRehype from 'remark-rehype';
 import type { Plugin } from 'unified';
+import { unified } from 'unified';
 import { Node } from 'unist';
 import { visit } from 'unist-util-visit';
 
 // import { getReactHooks } from '../react-hooks';
 
-import './Hello.css';
+const growi = new GROWI();
 
 declare const growiFacade : {
   react: typeof React,
 };
 
-type FakeJson = {
-  userId: number;
-  id: number;
-  title: string;
-  completed: boolean;
-}
 export const helloGROWI = (Tag: React.FunctionComponent<any>): React.FunctionComponent<any> => {
   return ({ children, ...props }) => {
     try {
-      const { react } = growiFacade;
-      const { useEffect, useCallback, useState } = react;
-      // ボタンのクリックイベントでカウントアップするためのstate
-      const [count, setCount] = useState(0);
-      // 外部データを取得して適用するためのstate
-      const [obj, setObj] = useState<FakeJson | null>(null);
+      const { include } = JSON.parse(props.title);
+      if (include) {
+        const { react } = growiFacade;
+        const { useEffect, useState } = react;
+        const [contents, setContents] = useState('');
+        const getContent = async() => {
+          const page = await growi.page({ path: children });
+          const contents = await page.contents();
+          const file = await unified()
+            .use(remarkParse)
+            .use(remarkRehype)
+            .use(rehypeStringify)
+            .process(contents);
+          setContents(String(file));
+        };
 
-      // useEffectで外部データを取得
-      const getFakeJson = async(count: number) => {
-        const url = `https://jsonplaceholder.typicode.com/todos/${count}`;
-        const response = await fetch(url);
-        const json = await response.json() as FakeJson;
-        setObj(json);
-      };
-
-      // countが変更されたら外部データを取得
-      useEffect(() => {
-        if (count > 0) getFakeJson(count);
-      }, [count]);
-
-      const { plugin } = JSON.parse(props.title);
-      if (plugin) {
+        useEffect(() => {
+          getContent();
+        }, []);
         return (
           <>
-            <a {...props}>{children}</a>
-            <div>Count: {count}</div>
-            <button
-              onClick={useCallback(() => setCount(c => c + 1), [])}
-            >
-              Up
-            </button>
-            { obj && (
-              <div>
-                <h2>{obj.title}</h2>
-                <div>{obj.id} & {obj.userId}</div>
-                <p>{obj.completed ? 'Completed' : 'Not Completed'}</p>
-              </div>
-            )}
+            <div dangerouslySetInnerHTML={{ __html: contents }} />
           </>
         );
       }
@@ -93,35 +76,20 @@ interface GrowiNode extends Node {
 
 export const remarkPlugin: Plugin = () => {
   return (tree: Node) => {
-    // You can use 2nd argument for specific node type
-    // visit(tree, 'leafDirective', (node: Node) => {
-    // :plugin[xxx]{hello=growi} -> textDirective
-    // ::plugin[xxx]{hello=growi} -> leafDirective
-    // :::plugin[xxx]{hello=growi} -> containerDirective
-    visit(tree, (node: Node) => {
+    visit(tree, 'leafDirective', (node: Node) => {
       const n = node as unknown as GrowiNode;
-      if (n.name !== 'plugin') return;
+      if (n.name !== 'include') return;
+      console.log(n);
       const data = n.data || (n.data = {});
       // Render your component
       const { value } = n.children[0] || { value: '' };
       data.hName = 'a'; // Tag name
-      data.hChildren = [{ type: 'text', value: `${value}, growi!` }]; // Children
+      data.hChildren = [{ type: 'text', value }]; // Children
       // Set properties
       data.hProperties = {
         href: 'https://example.com/rss',
-        title: JSON.stringify({ ...n.attributes, ...{ plugin: true } }), // Pass to attributes to the component
+        title: JSON.stringify({ ...n.attributes, ...{ include: true } }), // Pass to attributes to the component
       };
-    });
-  };
-};
-
-export const rehypePlugin: Plugin = () => {
-  return (tree: Node) => {
-    // node type is 'element' or 'text' (2nd argument)
-    visit(tree, 'text', (node: Node) => {
-      const n = node as unknown as GrowiNode;
-      const { value } = n;
-      n.value = `${value} 😄`;
     });
   };
 };
